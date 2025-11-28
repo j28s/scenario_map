@@ -1,40 +1,62 @@
 import streamlit as st
-import leafmap.foliumap as leafmap
 import os
 import json
+import base64
 import folium
 import rasterio
 import numpy as np
 from PIL import Image
-import base64
 import io
+from streamlit_folium import st_folium
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+
+
+def reproject_to_epsg4326(tif_path):
+    with rasterio.open(tif_path) as src:
+        src_crs = src.crs
+        dst_crs = 'EPSG:4326'
+        nodata = src.nodata
+
+        transform, width, height = calculate_default_transform(
+            src_crs, dst_crs, src.width, src.height, *src.bounds
+        )
+
+        dst = np.zeros((height, width), dtype=np.float32)
+
+        reproject(
+            source=rasterio.band(src, 1),
+            destination=dst,
+            src_transform=src.transform,
+            src_crs=src_crs,
+            dst_transform=transform,
+            dst_crs=dst_crs,
+            resampling=Resampling.nearest,
+            src_nodata=nodata,
+            dst_nodata=np.nan
+        )
+
+        left = transform[2]
+        top = transform[5]
+        right = left + transform[0] * width
+        bottom = top + transform[4] * height
+
+        bounds_4326 = [[bottom, left], [top, right]]
+
+        return dst, bounds_4326, nodata
+
+
 
 st.set_page_config(layout="wide")
 
-SGG = {
-    45790: "고창군", 45130: "군산시", 45210: "김제시",
-    45190: "남원시", 45730: "무주군", 45800: "부안군",
-    45770: "순창군", 45710: "완주군", 45140: "익산시",
-    45750: "임실군", 45740: "장수군", 45113: "전주시 덕진구",
-    45111: "전주시 완산구", 45180: "정읍시", 45720: "진안군"
-}
-JEONJU_CODES = [45111, 45113]
-
 APP_DIR = os.path.dirname(__file__)
 GEO_PATH = os.path.join(APP_DIR, "jb_sgg.geojson")
+BASE_DIR = os.path.join(APP_DIR, "static/full_tif")
 
 with open(GEO_PATH, "r", encoding="utf-8") as f:
     JB_GEO = json.load(f)
 
 
 st.title("전북 과수 재배지 변동 예측지도")
-
-BASE_DIR = os.path.join(APP_DIR, "full_tif")
-
-def img_to_b64(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
 
 crops = {
     "apple": "img/apple.png",
@@ -44,22 +66,23 @@ crops = {
     "tangerine": "img/tangerine.png",
 }
 
+def img_to_b64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
-crop_imgs = {k: img_to_b64(v) for k, v in crops.items()}
+
+crop_imgs = {k: img_to_b64(os.path.join(APP_DIR, v)) for k, v in crops.items()}
+
 
 if "selected_crop" not in st.session_state:
     st.session_state["selected_crop"] = None
+
 
 left_label = st.session_state["selected_crop"].capitalize() if st.session_state["selected_crop"] else ""
 st.markdown(f"### 🍎 작목 선택 — {left_label}")
 
 st.markdown("""
 <style>
-button[id^="cropbtn_"] {
-    background: none !important;
-    border: none !important;
-    padding: 0 !important;
-}
 .crop-img {
     width: 110px;
     border-radius: 16px;
@@ -89,10 +112,8 @@ button[id^="cropbtn_"] {
 
 
 cols = st.columns(5)
-
 for i, (crop, img_b64) in enumerate(crop_imgs.items()):
     with cols[i]:
-
         selected = (st.session_state.selected_crop == crop)
 
         st.markdown(
@@ -116,10 +137,12 @@ crop = st.session_state["selected_crop"]
 
 
 scenario = st.selectbox("시나리오", ["SSP245", "SSP585"])
+
 if scenario == "SSP585":
     year = 2021 if st.checkbox("2021 (단일 연도)", value=True) else None
 else:
-    year = st.select_slider("연도 선택 ( 2021 / 2041 / 2061 / 2081 )", [2021, 2041, 2061, 2081], value=2021)
+    year = st.select_slider("연도 선택 (2021 / 2041 / 2061 / 2081)", [2021, 2041, 2061, 2081], value=2021)
+
 opacity = st.slider("TIFF 투명도", 0.0, 1.0, 0.7)
 
 
@@ -147,87 +170,80 @@ if not st.session_state.get("show_map", False):
     st.stop()
 
 
-full_path = os.path.join(
-    BASE_DIR,
-    crop,
-    scenario,
-    f"{crop}_{scenario}_{year}_FULL.tif"
-)
+
+full_path = os.path.join(BASE_DIR, crop, scenario, f"{crop}_{scenario}_{year}_FULL.tif")
 
 if not os.path.exists(full_path):
-    st.error(f"TIFF 파일이 존재하지 않습니다.\n{full_path}")
+    st.error(f"⚠️ 파일을 불러오는 데 문제가 발생했습니다.\n관리자에게 문의해 주세요:\n => {full_path}")
     st.stop()
 
-m = leafmap.Map(center=[36.0, 127.0], zoom=8)
 
-colormap = ["#FFF8DC", "#EEC900", "#2E8B57"]
-legend_dict = {
-    "Bad (0)": "#FFF8DC",
-    "Possible (1)": "#EEC900",
-    "Suitable (2)": "#2E8B57"
-}
+m = folium.Map(location=[36.0, 127.0], zoom_start=8)
 
-m.add_legend(title="Suitability", legend_dict=legend_dict)
-
-
-for feature in JB_GEO["features"]:
-    kor = feature["properties"]["SIG_KOR_NM"]
-    eng = feature["properties"]["SIG_ENG_NM"]
-    feature["properties"] = {
-        "": f"{kor} ({eng})"
-    }
-
-m.add_geojson(
+folium.GeoJson(
     JB_GEO,
-    layer_name="전북 시군구 경계",
-    info_mode="on_click"
-)
-
-def add_tiff_as_image(m, tiff_path, opacity=0.7):
-    with rasterio.open(tiff_path) as src:
-        arr = src.read(1)
-        bbox = src.bounds
-
-    arr = np.nan_to_num(arr, nan=0)
-
-    palette = {
-        0: (255, 248, 220),
-        1: (238, 201, 0),
-        2: (46, 139, 87)
-    }
-
-    h, w = arr.shape
-    rgb = np.zeros((h, w, 3), dtype=np.uint8)
-    for k, color in palette.items():
-        rgb[arr == k] = color
-
-    pil = Image.fromarray(rgb)
-    buf = io.BytesIO()
-    pil.save(buf, format="PNG")
-    img_b64 = base64.b64encode(buf.getvalue()).decode()
-
-    url = f"data:image/png;base64,{img_b64}"
-    bounds = [[bbox.bottom, bbox.left], [bbox.top, bbox.right]]
-
-    m.add_image(url, bounds=bounds, opacity=opacity, name="Suitability")
+    name="전북 시군구 경계",
+    style_function=lambda feature: {
+        "color": "blue",
+        "weight": 2,
+        "fill": True,
+        "fillColor": "#000000",
+        "fillOpacity": 0.0,
+    },
+    highlight_function=lambda feature: {
+        "weight": 3,
+        "fill": True,
+        "fillColor": "#000000",
+        "fillOpacity": 0.0,     # hover 시에도 완전 투명하게 유지
+    },
+    popup=folium.GeoJsonPopup(
+        fields=["SIG_KOR_NM", "SIG_ENG_NM"],
+        aliases=["", ""],
+        labels=False,
+        parse_html=True,
+        localize=True,
+        style="font-size:15px;",
+        template="""
+            <div style="font-size:15px;">
+                {{SIG_KOR_NM}} ({{SIG_ENG_NM}})
+            </div>
+            """
+    )
+).add_to(m)
 
 
-with st.spinner("TIFF 지도를 불러오는 중입니다... (조금만 기다려주세요!)"):
-    add_tiff_as_image(m, full_path, opacity)
+arr32, bounds_4326, nodata = reproject_to_epsg4326(full_path)
 
 
-m.to_streamlit(width="100%", height=700)
+arr = arr32.copy()
+arr = np.where(np.isnan(arr), 255, arr).astype(np.uint8)
 
-# st.markdown(
-#     """
-#     <small>
-#     아이콘 출처:
-#     사과 - Freepik,
-#     배 - kosonicon,
-#     복숭아 - Vitaly Gorbachev,
-#     포도 - Dreamcreateicons,
-#     귤 - Triangle Squad (모두 Flaticon)
-#     </small>
-#     """,
-#     unsafe_allow_html=True
-# )
+palette = []
+palette += [255, 248, 220]    # 0 Bad
+palette += [238, 201, 0]      # 1 Possible
+palette += [46, 139, 87]      # 2 Suitable
+
+while len(palette) < 255 * 3:
+    palette += [0, 0, 0]
+
+palette += [0, 0, 0]
+
+img = Image.fromarray(arr, mode="P")
+img.putpalette(palette)
+img.info["transparency"] = 255
+
+buffer = io.BytesIO()
+img.save(buffer, format="PNG")
+encoded_png = base64.b64encode(buffer.getvalue()).decode()
+
+folium.raster_layers.ImageOverlay(
+    image=f"data:image/png;base64,{encoded_png}",
+    bounds=bounds_4326,
+    opacity=opacity,
+    name=f"{crop}_{scenario}_{year}_재배적합도"
+).add_to(m)
+
+folium.LayerControl().add_to(m)
+
+
+st_folium(m, width="100%", height=700)
