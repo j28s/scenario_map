@@ -3,8 +3,11 @@ import leafmap.foliumap as leafmap
 import os
 import json
 import folium
+import rasterio
+import numpy as np
+from PIL import Image
 import base64
-
+import io
 
 st.set_page_config(layout="wide")
 
@@ -180,13 +183,38 @@ m.add_geojson(
     info_mode="on_click"
 )
 
+def add_tiff_as_image(m, tiff_path, opacity=0.7):
+    with rasterio.open(tiff_path) as src:
+        arr = src.read(1)
+        bbox = src.bounds
+
+    arr = np.nan_to_num(arr, nan=0)
+
+    palette = {
+        0: (255, 248, 220),
+        1: (238, 201, 0),
+        2: (46, 139, 87)
+    }
+
+    h, w = arr.shape
+    rgb = np.zeros((h, w, 3), dtype=np.uint8)
+    for k, color in palette.items():
+        rgb[arr == k] = color
+
+    pil = Image.fromarray(rgb)
+    buf = io.BytesIO()
+    pil.save(buf, format="PNG")
+    img_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    url = f"data:image/png;base64,{img_b64}"
+    bounds = [[bbox.bottom, bbox.left], [bbox.top, bbox.right]]
+
+    m.add_image(url, bounds=bounds, opacity=opacity, name="Suitability")
+
+
 with st.spinner("TIFF 지도를 불러오는 중입니다... (조금만 기다려주세요!)"):
-    m.add_raster(
-        full_path,
-        colormap=colormap,
-        opacity=opacity,
-        layer_name=f"{crop}_{scenario}_{year}"
-    )
+    add_tiff_as_image(m, full_path, opacity)
+
 
 m.to_streamlit(width="100%", height=700)
 
