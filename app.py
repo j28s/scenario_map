@@ -9,6 +9,7 @@ from PIL import Image
 import io
 from streamlit_folium import st_folium
 from rasterio.warp import calculate_default_transform, reproject, Resampling
+from branca.element import Template, MacroElement
 
 
 def reproject_to_epsg4326(tif_path):
@@ -44,7 +45,15 @@ def reproject_to_epsg4326(tif_path):
 
         return dst, bounds_4326, nodata
 
-
+def make_legend_html(legend_dict):
+    items_html = ""
+    for label, color in legend_dict.items():
+        items_html += f"""
+        <div style="display:flex; align-items:center; margin-bottom:4px;">
+            <div style="width:18px; height:18px; background:{color}; border:1px solid #ccc;"></div>
+            <span style="margin-left:8px;">{label}</span>
+        </div>
+        """
 
 st.set_page_config(layout="wide")
 
@@ -194,7 +203,7 @@ folium.GeoJson(
         "weight": 3,
         "fill": True,
         "fillColor": "#000000",
-        "fillOpacity": 0.0,     # hover 시에도 완전 투명하게 유지
+        "fillOpacity": 0.0,
     },
     popup=folium.GeoJsonPopup(
         fields=["SIG_KOR_NM", "SIG_ENG_NM"],
@@ -223,6 +232,8 @@ palette += [255, 248, 220]    # 0 Bad
 palette += [238, 201, 0]      # 1 Possible
 palette += [46, 139, 87]      # 2 Suitable
 
+
+
 while len(palette) < 255 * 3:
     palette += [0, 0, 0]
 
@@ -236,12 +247,56 @@ buffer = io.BytesIO()
 img.save(buffer, format="PNG")
 encoded_png = base64.b64encode(buffer.getvalue()).decode()
 
+legend_template = """
+{% macro html(this, kwargs) %}
+
+<div id='maplegend' 
+     style='position: absolute; 
+            z-index:9999; 
+            background-color: white;
+            border:2px solid #bbb;
+            border-radius:6px;
+            padding: 10px;
+            bottom: 20px;
+            right: 20px;
+            font-size:14px;
+            color:#333;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.3);'>
+
+<b>재배 적합도</b><br><br>
+
+<div style='display:flex; align-items:center; margin-bottom:4px;'>
+    <div style='width:16px; height:16px; background:rgb(255,248,220); border:1px solid #999;'></div>
+    <span style='margin-left:6px; color:#333;'>Bad (0)</span>
+</div>
+
+<div style='display:flex; align-items:center; margin-bottom:4px;'>
+    <div style='width:16px; height:16px; background:rgb(238,201,0); border:1px solid #999;'></div>
+    <span style='margin-left:6px; color:#333;'>Possible (1)</span>
+</div>
+
+<div style='display:flex; align-items:center;'>
+    <div style='width:16px; height:16px; background:rgb(46,139,87); border:1px solid #999;'></div>
+    <span style='margin-left:6px; color:#333;'>Suitable (2)</span>
+</div>
+
+</div>
+
+{% endmacro %}
+"""
+
+macro = MacroElement()
+macro._template = Template(legend_template)
+m.get_root().add_child(macro)
+
 folium.raster_layers.ImageOverlay(
     image=f"data:image/png;base64,{encoded_png}",
     bounds=bounds_4326,
     opacity=opacity,
     name=f"{crop}_{scenario}_{year}_재배적합도"
 ).add_to(m)
+
+m.get_root().add_child(macro)
 
 folium.LayerControl().add_to(m)
 
