@@ -257,7 +257,7 @@ legend_template = """
             border:2px solid #bbb;
             border-radius:6px;
             padding: 10px;
-            bottom: 20px;
+            bottom: 50px;
             right: 20px;
             font-size:14px;
             color:#333;
