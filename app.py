@@ -187,7 +187,7 @@ if not os.path.exists(full_path):
     st.stop()
 
 
-m = folium.Map(location=[36.0, 127.0], zoom_start=8)
+m = folium.Map(location=[36.0, 127.0], zoom_start=10)
 
 folium.GeoJson(
     JB_GEO,
