@@ -148,11 +148,11 @@ crop = st.session_state["selected_crop"]
 scenario = st.selectbox("시나리오", ["SSP245", "SSP585"])
 
 if scenario == "SSP585":
-    year = 2021 if st.checkbox("2021 (단일 연도)", value=True) else None
+    year = 2021 if st.checkbox("2020년대 (단일 연도)", value=True) else None
 else:
-    year = st.select_slider("연도 선택 (2021 / 2041 / 2061 / 2081)", [2021, 2041, 2061, 2081], value=2021)
+    year = st.select_slider("연도 선택 (2020년대 / 2040년대 / 2060년대 / 2080년대)", [2021, 2041, 2061, 2081], value=2021)
 
-opacity = st.slider("TIFF 투명도", 0.0, 1.0, 0.7)
+opacity = st.slider("투명도", 0.0, 1.0, 0.7)
 
 
 btn_col, txt_col = st.columns([3, 11])
@@ -263,7 +263,7 @@ legend_template = """
             color:#333;
             box-shadow: 2px 2px 6px rgba(0,0,0,0.3);'>
 
-<b>재배 적합도</b><br><br>
+<b>범례</b><br><br>
 
 <div style='display:flex; align-items:center; margin-bottom:4px;'>
     <div style='width:16px; height:16px; background:rgb(255,248,220); border:1px solid #999;'></div>
