@@ -88,7 +88,19 @@ if "selected_crop" not in st.session_state:
 
 
 left_label = st.session_state["selected_crop"].capitalize() if st.session_state["selected_crop"] else ""
-st.markdown(f"### 🍎 작목 선택 — {left_label}")
+
+crop = st.session_state["selected_crop"]
+
+crop_emoji = {
+    "apple": "🍎",
+    "pear": "🍐",
+    "peach": "🍑",
+    "grape": "🍇",
+    "tangerine": "🍊"
+}
+
+emoji = crop_emoji.get(crop, "🍎")
+st.markdown(f"### {emoji} 작목 선택 — {left_label}")
 
 st.markdown("""
 <style>
@@ -142,15 +154,38 @@ for i, (crop, img_b64) in enumerate(crop_imgs.items()):
             st.session_state.selected_crop = crop
             st.rerun()
 
-crop = st.session_state["selected_crop"]
+
+# 경계 색
+border_color = {
+    "apple": "red",
+    "pear": "gold",
+    "peach": "pink",
+    "grape": "purple",
+    "tangerine": "orange"
+}.get(crop, "blue")
 
 
 scenario = st.selectbox("시나리오", ["SSP245", "SSP585"])
 
+year_options = {
+    "2020년대": 2021,
+    "2040년대": 2041,
+    "2060년대": 2061,
+    "2080년대": 2081,
+}
+
+
 if scenario == "SSP585":
-    year = 2021 if st.checkbox("2020년대 (단일 연도)", value=True) else None
+    st.markdown("연대 선택: 2020년대 (단일 연도)")
+    year = 2021
 else:
-    year = st.select_slider("연도 선택 (2020년대 / 2040년대 / 2060년대 / 2080년대)", [2021, 2041, 2061, 2081], value=2021)
+    selected_label = st.select_slider(
+        "연대 선택",
+        options=list(year_options.keys()),
+        value="2020년대"
+    )
+    year = year_options[selected_label]
+
 
 opacity = st.slider("투명도", 0.0, 1.0, 0.7)
 
@@ -187,19 +222,20 @@ if not os.path.exists(full_path):
     st.stop()
 
 
-m = folium.Map(location=[36.0, 127.0], zoom_start=10)
+m = folium.Map(location=[35.7, 127.0], zoom_start=9)
 
 folium.GeoJson(
     JB_GEO,
     name="전북 시군구 경계",
     style_function=lambda feature: {
-        "color": "blue",
+        "color": border_color,
         "weight": 2,
         "fill": True,
         "fillColor": "#000000",
         "fillOpacity": 0.0,
     },
     highlight_function=lambda feature: {
+        "color": border_color,
         "weight": 3,
         "fill": True,
         "fillColor": "#000000",
@@ -228,7 +264,7 @@ arr = arr32.copy()
 arr = np.where(np.isnan(arr), 255, arr).astype(np.uint8)
 
 palette = []
-palette += [255, 248, 220]    # 0 Bad
+palette += [255, 248, 220]    # 0
 palette += [238, 201, 0]      # 1 Possible
 palette += [46, 139, 87]      # 2 Suitable
 
@@ -289,6 +325,8 @@ macro = MacroElement()
 macro._template = Template(legend_template)
 m.get_root().add_child(macro)
 
+
+
 folium.raster_layers.ImageOverlay(
     image=f"data:image/png;base64,{encoded_png}",
     bounds=bounds_4326,
@@ -296,7 +334,6 @@ folium.raster_layers.ImageOverlay(
     name=f"{crop}_{scenario}_{year}_재배적합도"
 ).add_to(m)
 
-m.get_root().add_child(macro)
 
 folium.LayerControl().add_to(m)
 
