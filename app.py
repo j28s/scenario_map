@@ -87,32 +87,28 @@ if "selected_crop" not in st.session_state:
     st.session_state["selected_crop"] = None
 
 
-left_label = st.session_state["selected_crop"].capitalize() if st.session_state["selected_crop"] else ""
+# left_label = st.session_state["selected_crop"].capitalize() if st.session_state["selected_crop"] else ""
 
-crop = st.session_state["selected_crop"]
+# crop = st.session_state["selected_crop"]
+# left_label = crop.capitalize() if crop else ""
+#
+# crop_emoji = {
+#     "apple": "🍎",
+#     "pear": "🍐",
+#     "peach": "🍑",
+#     "grape": "🍇",
+#     "tangerine": "🍊"
+# }
+#
+# emoji = crop_emoji.get(crop, "🍎")
+#
+# st.markdown(f"### {emoji} 작목 선택 — {left_label}")
 
-crop_emoji = {
-    "apple": "🍎",
-    "pear": "🍐",
-    "peach": "🍑",
-    "grape": "🍇",
-    "tangerine": "🍊"
-}
-
-emoji = crop_emoji.get(crop, "🍎")
-st.markdown(f"### {emoji} 작목 선택 — {left_label}")
+title_placeholder = st.empty()
+title_placeholder.markdown("### 🍎 작목 선택 — ")
 
 st.markdown("""
 <style>
-.crop-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 16px;
-    padding: 10px;
-}
-.crop-item {
-    text-align: center;
-}
 .crop-img {
     width: 110px;
     border-radius: 16px;
@@ -141,6 +137,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+
 cols = st.columns(5)
 for i, (crop, img_b64) in enumerate(crop_imgs.items()):
     with cols[i]:
@@ -163,6 +160,20 @@ for i, (crop, img_b64) in enumerate(crop_imgs.items()):
             st.session_state.selected_crop = crop
             st.rerun()
 
+crop = st.session_state.get("selected_crop", None)
+left_label = crop.capitalize() if crop else ""
+
+crop_emoji = {
+    "apple": "🍎",
+    "pear": "🍐",
+    "peach": "🍑",
+    "grape": "🍇",
+    "tangerine": "🍊"
+}
+emoji = crop_emoji.get(crop, "🍎")
+
+# 3) 제목을 가장 위 placeholder에 출력 (UI 상으로 위에 보임)
+title_placeholder.markdown(f"### {emoji} 작목 선택 — {left_label}")
 
 # 경계 색
 border_color = {
@@ -173,6 +184,7 @@ border_color = {
     "tangerine": "orange"
 }.get(crop, "blue")
 
+# crop = st.session_state["selected_crop"]
 
 scenario = st.selectbox("시나리오", ["SSP245", "SSP585"])
 
