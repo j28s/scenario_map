@@ -104,6 +104,15 @@ st.markdown(f"### {emoji} 작목 선택 — {left_label}")
 
 st.markdown("""
 <style>
+.crop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+    padding: 10px;
+}
+.crop-item {
+    text-align: center;
+}
 .crop-img {
     width: 110px;
     border-radius: 16px;
