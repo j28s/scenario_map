@@ -267,17 +267,17 @@ legend_template = """
 
 <div style='display:flex; align-items:center; margin-bottom:4px;'>
     <div style='width:16px; height:16px; background:rgb(255,248,220); border:1px solid #999;'></div>
-    <span style='margin-left:6px; color:#333;'>Bad (0)</span>
+    <span style='margin-left:6px; color:#333;'>저위생산지</span>
 </div>
 
 <div style='display:flex; align-items:center; margin-bottom:4px;'>
     <div style='width:16px; height:16px; background:rgb(238,201,0); border:1px solid #999;'></div>
-    <span style='margin-left:6px; color:#333;'>Possible (1)</span>
+    <span style='margin-left:6px; color:#333;'>재배가능지</span>
 </div>
 
 <div style='display:flex; align-items:center;'>
     <div style='width:16px; height:16px; background:rgb(46,139,87); border:1px solid #999;'></div>
-    <span style='margin-left:6px; color:#333;'>Suitable (2)</span>
+    <span style='margin-left:6px; color:#333;'>재배적합지</span>
 </div>
 
 </div>
