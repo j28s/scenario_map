@@ -86,24 +86,6 @@ crop_imgs = {k: img_to_b64(os.path.join(APP_DIR, v)) for k, v in crops.items()}
 if "selected_crop" not in st.session_state:
     st.session_state["selected_crop"] = None
 
-
-# left_label = st.session_state["selected_crop"].capitalize() if st.session_state["selected_crop"] else ""
-
-# crop = st.session_state["selected_crop"]
-# left_label = crop.capitalize() if crop else ""
-#
-# crop_emoji = {
-#     "apple": "🍎",
-#     "pear": "🍐",
-#     "peach": "🍑",
-#     "grape": "🍇",
-#     "tangerine": "🍊"
-# }
-#
-# emoji = crop_emoji.get(crop, "🍎")
-#
-# st.markdown(f"### {emoji} 작목 선택 — {left_label}")
-
 title_placeholder = st.empty()
 title_placeholder.markdown("### 🍎 작목 선택 — ")
 
@@ -172,7 +154,6 @@ crop_emoji = {
 }
 emoji = crop_emoji.get(crop, "🍎")
 
-# 3) 제목을 가장 위 placeholder에 출력 (UI 상으로 위에 보임)
 title_placeholder.markdown(f"### {emoji} 작목 선택 — {left_label}")
 
 # 경계 색
@@ -184,9 +165,12 @@ border_color = {
     "tangerine": "orange"
 }.get(crop, "blue")
 
-# crop = st.session_state["selected_crop"]
-
-scenario = st.selectbox("시나리오", ["SSP245", "SSP585"])
+scenario_options = {
+    "SSP2-4.5": "SSP245",
+    "SSP5-8.5": "SSP585",
+}
+selected_scenario_label = st.selectbox("시나리오", list(scenario_options.keys()))
+scenario = scenario_options[selected_scenario_label]
 
 year_options = {
     "2020년대": 2021,
@@ -194,7 +178,6 @@ year_options = {
     "2060년대": 2061,
     "2080년대": 2081,
 }
-
 
 if scenario == "SSP585":
     st.markdown("연대 선택: 2020년대 (단일 연도)")
