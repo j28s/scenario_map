@@ -86,8 +86,8 @@ crop_imgs = {k: img_to_b64(os.path.join(APP_DIR, v)) for k, v in crops.items()}
 if "selected_crop" not in st.session_state:
     st.session_state["selected_crop"] = None
 
-title_placeholder = st.empty()
-title_placeholder.markdown("### 🍎 작목 선택 — ")
+left_label = st.session_state["selected_crop"].capitalize() if st.session_state["selected_crop"] else ""
+st.markdown(f"### 🧺 작목 선택 — {left_label}")
 
 st.markdown("""
 <style>
@@ -143,18 +143,6 @@ for i, (crop, img_b64) in enumerate(crop_imgs.items()):
             st.rerun()
 
 crop = st.session_state.get("selected_crop", None)
-left_label = crop.capitalize() if crop else ""
-
-crop_emoji = {
-    "apple": "🍎",
-    "pear": "🍐",
-    "peach": "🍑",
-    "grape": "🍇",
-    "tangerine": "🍊"
-}
-emoji = crop_emoji.get(crop, "🍎")
-
-title_placeholder.markdown(f"### {emoji} 작목 선택 — {left_label}")
 
 # 경계 색
 border_color = {
@@ -166,29 +154,30 @@ border_color = {
 }.get(crop, "blue")
 
 scenario_options = {
+    "평년 (1991-2020)": "CURRENT",
     "SSP2-4.5": "SSP245",
     "SSP5-8.5": "SSP585",
 }
 selected_scenario_label = st.selectbox("시나리오", list(scenario_options.keys()))
 scenario = scenario_options[selected_scenario_label]
 
-year_options = {
-    "2020년대": 2021,
-    "2040년대": 2041,
-    "2060년대": 2061,
-    "2080년대": 2081,
-}
-
-if scenario == "SSP585":
-    st.markdown("연대 선택: 2020년대 (단일 연도)")
-    year = 2021
+# 연도 선택
+if scenario == "CURRENT":
+    year = 1991
 else:
+    year_options = {
+        "2020년대": 2021,
+        "2040년대": 2041,
+        "2060년대": 2061,
+        "2080년대": 2081,
+    }
     selected_label = st.select_slider(
         "연대 선택",
         options=list(year_options.keys()),
         value="2020년대"
     )
     year = year_options[selected_label]
+
 
 
 opacity = st.slider("투명도", 0.0, 1.0, 0.7)
